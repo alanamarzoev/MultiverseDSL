@@ -1,0 +1,75 @@
+
+
+$MyClasses = filter($Role.r_cid), [($UID IN $Role.r_uid)]) 
+$TAClasses = filter($Role.r_cid, [($Role.r_role IN 1), ($UID IN $Role.r_uid)])
+
+EXPORT $PublicPosts = filter($Post, [($Post.p_private IN 0)])
+EXPORT $OwnPrivatePosts = filter($Post, [($Post.p_private IN 1), ($UID in $Post.p_author)])
+EXPORT $TAVisiblePrivatePosts = filter($Post, [($Post.p_private IN 1), ($Post.p_cid in $TAClasses)])
+EXPORT $AnonymizedPosts = transform($Post, [($Post.p_anonymous IN 1) => ($Post.p_author = "anonymous")])
+EXPORT $StudentEnrollmentInfo = filter($Role, [($Role.c_id IN TAClasses)])
+EXPORT $TAEnrollmentInfo = filter($Role, [($Role.r_role IN 1), ($Role.r_cid IN $MyClasses)])
+
+
+pub enum View {
+    (str, Function)
+}
+
+pub enum Function {
+    str, 
+    Filter(str, Predicate),
+    Transform(str, Predicate),
+    Aggregate(AggregateType, str, Predicate)
+}
+
+pub enum AggregateType {
+    Count, 
+    Min, 
+    Max
+}
+
+pub enum Predicate {
+    Equal(View, View), 
+    Rewrite(View, View)
+}
+
+use std::str::FromStr;
+use ast::{View, Function, Aggregate, Predicate}; 
+
+grammar;
+
+pub View: (str, Vec<Op>) = {
+    "EXPORT $" + <name:str> + " = " + 
+    <f:Function> + "(" + <view:View> + ", [" + <predicates:Predicate> + "])" => 
+}
+
+pub Expr: i32 = {
+    <l:Expr> "+" <r:Factor> => l + r,
+    <l:Expr> "-" <r:Factor> => l - r,
+    Factor,
+};
+
+Factor: i32 = {
+    <l:Factor> "*" <r:Term> => l * r,
+    <l:Factor> "/" <r:Term> => l / r,
+    Term,
+};
+
+Term: i32 = {
+    Num,
+    "(" <Expr> ")",
+};
+
+Num: i32 = {
+    r"[0-9]+" => i32::from_str(<>).unwrap(),
+};
+
+pub Expr: Box<Expr> = { // (1)
+    Expr ExprOp Factor => Box::new(Expr::Op(<>)), // (2)
+    Factor,
+};
+
+ExprOp: Opcode = { // (3)
+    "+" => Opcode::Add,
+    "-" => Opcode::Sub,
+};

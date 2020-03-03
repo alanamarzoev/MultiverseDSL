@@ -1,0 +1,85 @@
+// Write policies in MultiverseDSL. 
+// UPDATE(x) = the view defined by incoming updates to the dataframe x. 
+// INSERT(x) = the view defined by incoming inserts to the dataframe x. 
+// WRITE(x) = the view defined by both incoming inserts or updates to the dataframe x. 
+
+// Notes: we still define condition variables that are used in the policy predicates. 
+// This implies a cycle in the dataflow graph --- if the write policies were also 
+// implemented entirely in dataflow, then this would mean that we read from a node 
+// below the base tables in the graph to determine whether or not to a accept a 
+// write into a base table. This leads to potential inconsistency issues --- imagine
+// a write policy predicated on two values that must be read from some middle layer
+// in the dataflow graph. If a user overwrites both of these values, but one of them
+// gets updated prior to the other and the other doesn't  (which is plausible, given 
+// Noria's lack of consistency) guarantees, and an incoming write is filtered based on 
+// this intermediate state (i.e. one value modified but the other not), then we would
+// end up in a weird state that might lead to data leaks. 
+
+// In reality, write policies will be implemented as SQL transactions (i.e.) we will
+// replace Noria's base storage (RocksDB) with a SQL data store. Whenever we get a 
+// write request, we'll start a transaction over the base tables that does the following: 
+// 1. Issues the SQL queries that define the ``condition vars'' in the original 
+// policy language scheme. 
+// 2. Issues a SQL update parameterized on the policy predicates. (for specific details 
+// on what this looks like in code, check out the `write-translation` dir)
+
+// With this new scheme, we no longer have to be concerned with inconsistencies in 
+// data values that policy predicates rely on, since transactions ensure that this 
+// scenario will never arise.
+
+$MyRole = filter($People.role, [($UID IN $People.p_id)])
+$PaperAuthors = filter($Submission.authors, [($UPDATE.sid IN $Submission.sid)])
+$PaperReviewers = filter($Reviewers.pid, [($UPDATE.sid = sid)])
+
+filter(UPDATE($Submissions), [($MyRole IN $PaperAuthors), ("Submission" IN $ConfMeta.phase)])
+filter(UPDATE($ConfMeta.phase), [($MyRole IN "Chair")])
+filter(WRITE($Reviewers), [($MyRole in "Chair")])
+filter(WRITE($Comments), [($MyRole in $PaperAuthors)])
+filter(WRITE($Comments), [($MyRole in $PaperReviewers)])
+
+
+// Write policies in old policy language. 
+{
+	"policies": [
+		{
+            "columns": "Submissions.*",
+            "type": "update", 
+            "condition_vars": [ 
+                {"updater_role": "SELECT role FROM People WHERE pid = UserContext.id"}, 
+                {"paper_authors": "SELECT authors FROM Submissions WHERE sid = UPDATE.sid"}, 
+                {"conference_phase": "SELECT phase FROM ConfMeta"}
+            ], 
+			"predicate": "WHERE updater_role IN paper_authors AND conference_phase = 'submission'", 
+			"description": "Authors can only update their submissions during the submission phase"
+        }, 
+        {
+            "columns": "ConfMeta.phase",
+            "type": "update", 
+            "condition_vars": [ 
+                {"updater_role": "SELECT role FROM People WHERE pid = UserContext.id"}
+            ], 
+			"predicate": "WHERE updater_role = 'chair'",
+			"description": "Only the conference chair can change the current conference phase"
+        }, 
+        {
+            "columns": "Reviewers.*",
+            "type": "both", 
+            "condition_vars": [ 
+                {"updater_role": "SELECT role FROM People WHERE pid = UserContext.id"}
+            ], 
+			"predicate": "WHERE updater_role = 'chair'",
+			"description": "Only the conference chair can assign reviewers to papers"
+        }, 
+        {
+            "columns": "Comments.*",
+            "type": "both", 
+            "condition_vars": [ 
+                {"updater_role": "SELECT role FROM People WHERE pid = UserContext.id"}, 
+                {"paper_authors": "SELECT authors FROM Submissions WHERE sid = UPDATE.sid"}, 
+                {"paper_reviewers": "SELECT pid FROM Reviewers WHERE sid = UPDATE.sid"}
+            ], 
+			"predicate": "WHERE updater_role IN paper_authors OR update_role IN paper_reviewers",
+			"description": "Only the authors and reviewers of a paper can comment"
+        }  
+	]
+}

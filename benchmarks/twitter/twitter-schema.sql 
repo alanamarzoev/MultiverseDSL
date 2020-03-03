@@ -1,0 +1,113 @@
+CREATE TABLE Users (
+  id iNT PRIMARY KEY AUTO_INCREMENT,
+  handle VARCHAR(15) NOT NULL UNIQUE,
+  name VARCHAR(50) NOT NULL,
+  email VARCHAR(320) NOT NULL UNIQUE,
+  password VARCHAR(100) NOT NULL,
+  is_private BOOLEAN NOT NULL DEFAULT FALSE,
+  is_open_dms BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  bio VARCHAR(160),
+  location VARCHAR(30),
+  website VARCHAR(100),
+  month_birthday VARCHAR(9),
+  day_birthday INT,
+  year_birthday INT,
+  CONSTRAINT month CHECK (month_birthday IN 
+    ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')),
+  CONSTRAINT day CHECK(day_birthday >= 1 AND day_birthday <= 31),
+  CONSTRAINT year CHECK(year_birthday >= 1900 AND year_birthday <= 2020)
+);
+
+
+CREATE TABLE Tweets (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  content VARCHAR(280),
+  retweet_id INT,
+  reply_id INT,
+  is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
+  timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (retweet_id) REFERENCES Tweets(id),
+  FOREIGN KEY (reply_id) REFERENCES Tweets(id),
+  CONSTRAINT no_retweet_and_reply
+    CHECK (retweet_id IS NULL OR reply_id IS NULL),
+  CONSTRAINT no_empty_content_if_not_retweet
+    CHECK (content IS NOT NULL OR retweet_id IS NOT NULL)
+);
+
+
+CREATE TABLE Likes (
+  user_id INT NOT NULL,
+  tweet_id INT NOT NULL,
+  timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(user_id, tweet_id),
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (tweet_id) REFERENCES Tweets(id)
+);
+
+
+CREATE TABLE Follows (
+  user_id INT NOT NULL,
+  followed_id iNT NOT NULL,
+  PRIMARY KEY(user_id, followed_id),
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (followed_id) REFERENCES Users(id),
+  CONSTRAINT no_follow_oneself CHECK (user_id <> followed_id)
+);
+
+
+CREATE TABLE BlockedAccounts (
+  user_id INT NOT NULL,
+  blocked_id iNT NOT NULL,
+  PRIMARY_KEY(user_id, blocked_id),
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (blocked_id) REFERENCES Users(id),
+  CONSTRAINT no_block_oneself
+    CHECK (user_id <> blocked_id)
+);
+
+
+CREATE TABLE MutedAccounts (
+  user_id iNT NOT NULL,
+  muted_id INT NOT NULL,
+  PRIMARY KEY(user_id, muted_id),
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (muted_id) REFERENCES Users(id)
+);
+
+
+CREATE TABLE Messages (
+  sender_id INT NOT NULL,
+  sendee_id INT NOT NULL,
+  content VARCHAR(500) NOT NULL,
+  timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY sender_id REFERENCES Users(id),
+  FOREIGN KEY sendee_id REFERENCES Users(id),
+  CONSTRAINT no_message_oneself
+    CHECK (sender_id <> sendee_id),
+);
+
+
+CREATE TABLE Notifs (
+  user_id INT NOT NULL,
+  tweet_id INT NOT NULL,
+  interaction INT NOT NULL,
+  timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(user_id, reply_id, interaction),
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  FOREIGN KEY (tweet_id) REFERENCES Tweets(id),
+  CONSTRAINT valid_interaction CHECK (interaction >= 0 AND interaction < 3)
+);
+
+CREATE TABLE NotifsPreferences (
+  user_id INT PRIMARY KEY,
+  mute_you_dont_follow BOOLEAN NOT NULL DEFAULT FALSE,
+  mute_who_dont_follow_you BOOLEAN NOT NULL DEFAULT FALSE,
+  mute_with_new_account BOOLEAN NOT NULL DEFAULT FALSE,
+  mute_with_default_picture BOOLEAN NOT NULL DEFAULT FALSE,
+  mute_have_not_confirmed_email BOOLEAN NOT NULL DEFAULT FALSE,
+  mute_have_not_confirmed_phone BOOLEAN NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (user_id) REFERENCES Users(id)
+);

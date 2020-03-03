@@ -1,0 +1,77 @@
+// Type signatures: filter(view, (predicate_list)), transform(view, ((predicate_list) => (transform_predicates)))
+
+// Intermediate views: unexported views that users don't get direct access to, but are useful intermediates.
+
+$AuthorPaperReviews = filter($PaperReview,  
+                            ($PaperReview.paperId in $AuthorPapers, 
+                            “final” in $conf_phase_)
+
+$My_Conflicts = ...
+
+$MyConflictedPapers = filter($PaperConflicts, 
+                          ($UID in $PC, 
+                           $Paper.paperId` IN ($My_Conflicts)) 
+
+// $Reviews_Assigned = ...
+
+// $Reviews_Submitted = ...
+
+// $PC = ...
+
+$Authors = ... 
+
+
+// Authors can see their own papers.  
+EXPORT $AuthorsPapers = filter($Paper, 
+                              ($UID in $Paper.leadContactID))  
+
+// Authors can see their paper's anonymous reviews if it is the final conference phase.                      
+EXPORT $AnonymizedAuthorPaperReviews = transform($AuthorPaperReviews, 
+                                                ($UID in $AuthorPaperReviews.contactId => 
+                                                 $AuthorPaperReviews.reviewerId = 'NULL')) 
+
+// Reviewers can see reviews on papers they are assigned to review and have submitted a review for.
+EXPORT $AssignedAndSubmittedReviews = filter($PaperReview, 
+                                            ($UID in $Reviewers, 
+                                             $PaperReview.paperId in $Reviews_Assigned, 
+                                             $PaperReview.paperId in $Reviews_Submitted))  
+
+// PC members can see anonymized versions of all papers. 
+EXPORT $AllPapersAnonymized = transform($Paper, 
+                                       ($UID in $PC => 
+                                       ($Paper.leadContactId = 'NULL'
+                                        $Paper.authorInformation = 'NULL',  
+                                        $Paper.collaborators = 'NULL')) 
+
+// Reviewers can never see anything about a paper they're conflicted with, other than its existence.
+EXPORT $AnonymizedConflictedPapers = transform($ConflictedPapers, 
+                                              ($UID in $PC =>  
+                                               $ConflictedPapers.paperId = 'NULL', 
+                                               $ConflictedPapers.title = 'NULL', 
+                                               $ConflictedPapers.abstract = 'NULL'))   
+ 
+// The chair can see everything about all papers, except for papers they're conflicted with.
+EXPORT $AllPaperReviewsExceptConflicted = filter($PaperReview, 
+                                                ($UID in $Chair, 
+                                                $PaperReview.paperId in $MY_CONFLICTS)) 
+
+// The chair can see everything about all papers, except for papers they're conflicted with.
+EXPORT $AllPapersExceptConflicted = filter($Paper, 
+                                          ($UID in $Chair, 
+                                           $Paper.paperId in $MY_CONFLICTS))
+    
+
+$MyRole = filter($People.role, [($UID IN $People.p_id)])
+$PaperAuthors = filter($Submission.authors, [($UPDATE.sid IN $Submission.sid)])
+$PaperReviewers = filter($Reviewers.pid, [($UPDATE.sid = sid)])
+
+filter(UPDATE($Submissions), [($MyRole IN $PaperAuthors), ("Submission" IN $ConfMeta.phase)])
+filter(UPDATE($ConfMeta.phase), [($MyRole IN "Chair")])
+filter(WRITE($Reviewers), [($MyRole in "Chair")])
+filter(WRITE($Comments), [($MyRole in $PaperAuthors)])
+filter(WRITE($Comments), [($MyRole in $PaperReviewers)])
+
+
+
+
+
