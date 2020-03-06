@@ -366,21 +366,33 @@ def planning(queries, policies):
                 basetable_to_policies[tbl].append(node)
 
 
-    # insert policy nodes directly below basetables, prior to any query computation nodes.
-    # this configuration will always be correct but it is clearly not optimal.
-    for query in queries: 
-        for basetable, pols in basetable_to_policies.items(): 
-            connected = query[basetable]
-            if len(pols) > 0: 
-                query[basetable] = pols[0]
-                last = pols[0]
-                for pol in range(1, len(pols)): 
-                    query[pols[0]] = [pol] 
-                    last = pol
-                query[last] = connected 
+    # # insert policy nodes directly below basetables, prior to any query computation nodes.
+    # # this configuration will always be correct but it is clearly not optimal.
+    # for query in queries: 
+    #     for basetable, pols in basetable_to_policies.items(): 
+    #         connected = query[basetable]
+    #         if len(pols) > 0: 
+    #             query[basetable] = pols[0]
+    #             last = pols[0]
+    #             for pol in range(1, len(pols)): 
+    #                 query[pols[0]] = [pol] 
+    #                 last = pol
+    #             query[last] = connected 
     
-    # now, we look at all dataflow paths, and see if we can swap any two neighboring nodes.
-    # if we can swap them, 
+    # now, our goal is to push the policy nodes as far down in the graph as possible.
+    # we do this by comparing every policy node and its neighbor and seeing if we can 
+    # swap their positions (aka, if the operations commute). we stop once we've reached 
+    # a fixed point. TODO what happens at a branching point? in this case, it's no longer
+    # necessarily better to push down the policy node. initial heuristic: if the node is
+    # user dependent, continue to push it down, otherwise don't. TODO include the branching
+    # factor in this cost model?
+    base_to_pol = basetable_to_policies.copy()
+    for query in queries: 
+        for basetable, pol in base_to_pol.items(): 
+            connected = base_to_pol[basetable]
+            for node, out_edges in query.items(): 
+    
+
 
 
 
