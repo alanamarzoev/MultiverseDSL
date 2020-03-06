@@ -26,7 +26,7 @@ class Filter:
 
             intermediate_view_names = [x.name for x in intermediate_views]
             if tbl in schema.keys():# base table 
-                tbl_node = Node(tbl, None, [tbl])  
+                tbl_node = Node(tbl, None, [tbl], self.policy)  
                 graph[tbl_node] = []  
             elif tbl in intermediate_view_names: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
@@ -354,16 +354,16 @@ def check_commutativity(op1, op2):
     return
 
 
-def planning(queries, policies): 
+# def planning(queries, policies): 
     # figure out what policy nodes apply to each basetable (preserving their order)
-    basetable_to_policies = {}
-    for policy in policies: 
-        for node, edges in policy.items(): 
-            print('node: {}'.format(node))
-            for tbl in node.basetables: 
-                if tbl not in basetable_to_policies: 
-                    basetable_to_policies[tbl] = []
-                basetable_to_policies[tbl].append(node)
+    # basetable_to_policies = {}
+    # for policy in policies: 
+    #     for node, edges in policy.items(): 
+    #         print('node: {}'.format(node))
+    #         for tbl in node.basetables: 
+    #             if tbl not in basetable_to_policies: 
+    #                 basetable_to_policies[tbl] = []
+    #             basetable_to_policies[tbl].append(node)
 
 
     # # insert policy nodes directly below basetables, prior to any query computation nodes.
@@ -386,11 +386,11 @@ def planning(queries, policies):
     # necessarily better to push down the policy node. initial heuristic: if the node is
     # user dependent, continue to push it down, otherwise don't. TODO include the branching
     # factor in this cost model?
-    base_to_pol = basetable_to_policies.copy()
-    for query in queries: 
-        for basetable, pol in base_to_pol.items(): 
-            connected = base_to_pol[basetable]
-            for node, out_edges in query.items(): 
+    # base_to_pol = basetable_to_policies.copy()
+    # for query in queries: 
+    #     for basetable, pol in base_to_pol.items(): 
+    #         connected = base_to_pol[basetable]
+    #         for node, out_edges in query.items(): 
     
 
 
@@ -421,7 +421,7 @@ def main():
     queries = load_queries(schema) 
     policies = None 
     policies = load_policies(schema) 
-    final_graph = planning(queries, policies)
+    # final_graph = planning(queries, policies)
 
 
 
