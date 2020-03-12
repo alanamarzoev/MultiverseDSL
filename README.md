@@ -1,3 +1,3 @@
 # MultiverseDSL
 
-Policy language and query planning module of a multiverse database. 
+Policy language and query planning modules of a multiverse database. 
