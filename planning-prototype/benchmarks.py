@@ -1,4 +1,5 @@
 import dataflow 
+from dataflow import * 
 
 # HotCRP policies: --------------------------------------------
 

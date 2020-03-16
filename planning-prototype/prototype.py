@@ -6,6 +6,7 @@ import sys
 import json 
 import networkx as nx
 import matplotlib.pyplot as plt
+from benchmarks import * 
 from networkx.drawing.nx_agraph import graphviz_layout
 from moz_sql_parser import parse
 from enum import Enum
@@ -77,8 +78,6 @@ def visualize(graph):
 
 def main():
     parser = argparse.ArgumentParser(description='Select benchmark.')
-    parser.add_argument('integers', metavar='N', type=int, nargs='+',
-                        help='an integer for the accumulator')
     parser.add_argument('--benchmark', type=str, default='hotcrp') 
     args = parser.parse_args()
 
