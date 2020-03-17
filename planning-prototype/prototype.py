@@ -10,6 +10,7 @@ from benchmarks import *
 from networkx.drawing.nx_agraph import graphviz_layout
 from moz_sql_parser import parse
 from enum import Enum
+from planning import * 
 
 
 def load_schema(schema_path): 
@@ -28,7 +29,6 @@ def load_schema(schema_path):
             base_tables[most_recent_table].append(col_name)
         else: 
             continue 
-
     return base_tables 
 
 
@@ -90,13 +90,13 @@ def main():
 
     schema = load_schema(schema_path)
     queries = load_queries(schema, args.benchmark)
-    visualize(queries[0]) 
+    # visualize(queries[0]) 
     policies = load_policies(schema, args.benchmark)
-    visualize(policies[0])
+    # visualize(policies[0])
     final_graph = planning(queries, policies)
     print('final graph: {}'.format(final_graph))
-    # for graph in final_graph: 
-        # visualize(graph) 
+    for graph in final_graph: 
+        visualize(graph) 
 
 
 if __name__ == '__main__': 

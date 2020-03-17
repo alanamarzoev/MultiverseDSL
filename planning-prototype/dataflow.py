@@ -1,13 +1,55 @@
 # Intermediate representation of dataflow graph 
 
 
+class Node: 
+    def __init__(self, name, operation_type, basetables, policy, predicate=None, operation_on=None, groupby=None): 
+        self.name = name
+        self.operation_type = operation_type
+        self.predicate = predicate 
+        self.operation_on = operation_on 
+        self.groupby = groupby
+        self.basetables = basetables
+        self.policy = policy
+    
+    def __repr__(self):
+        return "< NODE: name: %s, optype: %s, basetables: %s, predicate: %s>\n" % (self.name, self.operation_type, self.basetables, self.predicate)
+    
+    def check_commutativity(operations): 
+        left, right = self.predicate.split('IN')
+        left_table, left_col = left.split('.')
+        right_table, right_col = right.split('.')
+
+
+class Function: 
+    def __init__(self, event_chain, schema): 
+        self.event_chain = event_chain 
+        self.schema = schema
+
+    def __repr__(self):
+        return "<Function: event chain: %s,\n schema: %s>\n" % (self.event_chain, self.schema)
+
+    def to_dataflow(self, schema): 
+        print(self.event_chain)
+        intermediate_views = []
+        intermediate_graph = {}
+        for operation in self.event_chain: 
+            subgraph, output_views = operation.to_dataflow(schema, intermediate_graph, intermediate_views)
+            intermediate_graph = subgraph 
+            intermediate_views = output_views 
+            print("intermediate graph: {}".format(intermediate_graph))
+
+        return intermediate_graph
+
+
 class Filter: 
-    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False):
+    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False, export=False, on=False):
         self.new_view_name = new_view_name
         self.tables = tables
         self.predicates = predicates 
         self.policy = policy 
         self.affected_base_tables = affected_base_tables
+        self.export = export 
+        self.on = on 
     
     def __repr__(self):
         return "< Filter: view name: %s,\n tables: %s,\n predicates: %s, policy: %s>\n" % (self.new_view_name, self.tables, self.predicates, self.policy)
@@ -35,6 +77,7 @@ class Filter:
             new_node = Node(node_name, "filter", self.affected_base_tables, self.policy, predicate=predicate)  
             graph[new_node] = []
             upstream = set()
+            print('predicate: {}'.format(predicate))
             left, right = predicate.split('IN')
 
             if '.' in left and prev is None: 
@@ -69,32 +112,14 @@ class Filter:
         return graph, intermediate_views
 
 
-class Node: 
-    def __init__(self, name, operation_type, basetables, policy, predicate=None, operation_on=None, groupby=None): 
-        self.name = name
-        self.operation_type = operation_type
-        self.predicate = predicate 
-        self.operation_on = operation_on 
-        self.groupby = groupby
-        self.basetables = basetables
-        self.policy = policy
-    
-    def __repr__(self):
-        return "< NODE: name: %s, optype: %s, basetables: %s, predicate: %s>\n" % (self.name, self.operation_type, self.basetables, self.predicate)
-    
-    def check_commutativity(operations): 
-        left, right = self.predicate.split('IN')
-        left_table, left_col = left.split('.')
-        right_table, right_col = right.split('.')
-
-
 class Transform: 
-    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False):
+    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False, export=False):
         self.new_view_name = new_view_name
         self.tables = tables
         self.predicates = predicates 
         self.policy = policy
         self.affected_base_tables = affected_base_tables
+        self.export = export 
     
     def __repr__(self):
         return "<Transform: view name: %s,\n tables: %s,\n predicates: %s, policy: %s>\n" % (self.new_view_name, self.tables, self.predicates, self.policy)
@@ -162,7 +187,7 @@ class Transform:
 
 
 class Aggregate: 
-    def __init__(self, new_view_name, operation_type, tables, operation_on, predicates, affected_base_tables=None, groupby=None, policy=False):
+    def __init__(self, new_view_name, operation_type, tables, operation_on, predicates, affected_base_tables=None, groupby=None, policy=False, export=False):
         self.new_view_name = new_view_name
         self.operation_type = operation_type 
         self.operation_on = operation_on 
@@ -171,6 +196,7 @@ class Aggregate:
         self.groupby = groupby 
         self.affected_base_tables = affected_base_tables
         self.policy = policy 
+        self.export = export 
     
     def __repr__(self):
         return "<Aggregate: op type: %s,\n op on: %s,\n tables: %s,\n predicates: %s,\n groupby: %s, policy: %s>\n" % (self.operation_type, self.operation_on, self.tables, self.predicates, self.groupby, self.policy)
@@ -235,24 +261,3 @@ class Aggregate:
         
                     
         return graph, intermediate_views
-
-
-class Function: 
-    def __init__(self, event_chain, schema): 
-        self.event_chain = event_chain 
-        self.schema = schema
-
-    def __repr__(self):
-        return "<Function: event chain: %s,\n schema: %s>\n" % (self.event_chain, self.schema)
-
-    def to_dataflow(self, schema): 
-        print(self.event_chain)
-        intermediate_views = []
-        intermediate_graph = {}
-        for operation in self.event_chain: 
-            subgraph, output_views = operation.to_dataflow(schema, intermediate_graph, intermediate_views)
-            intermediate_graph = subgraph 
-            intermediate_views = output_views 
-            print("intermediate graph: {}".format(intermediate_graph))
-
-        return intermediate_graph

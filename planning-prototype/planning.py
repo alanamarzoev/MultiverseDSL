@@ -1,4 +1,5 @@
-import dataflow 
+import dataflow
+import sys
 from dataflow import * 
 
 PERSON_ID_COLS = {'contactID'}
@@ -125,7 +126,7 @@ def make_move(graph, roots):
             rootnode = None
             for node, conn in graph.items(): 
                 # print('node name: {} basetable: {}'.format(node, root))
-                if node.name == root:
+                if node is not None and node.name == root:
                     # print('made it!')
                     connected = conn
                     rootnode = node 
@@ -182,11 +183,15 @@ def planning(queries, policies):
     # insert policy nodes directly below basetables, prior to any query computation nodes.
     # this configuration will always be correct but it is clearly not optimal.
     query = queries[0]
+    print('QUERY: {}'.format(query))
+    print('POLICIES: {}'.format(policies[0]))
+    sys.exit(0)
     for basetable, pols in basetable_to_policies.items(): 
         connected = None 
         basetable_node = None 
         for node, conn in query.items(): 
-            if node.name == basetable:
+            print("node: {}".format(node))
+            if node is not None and node.name == basetable:
                 connected = conn
                 basetable_node = node 
        
