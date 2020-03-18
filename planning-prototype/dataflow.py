@@ -2,17 +2,17 @@
 
 
 class Node: 
-    def __init__(self, name, operation_type, basetables, policy, predicate=None, operation_on=None, groupby=None): 
+    def __init__(self, name, operation_type, policy, predicate=None, operation_on=None, groupby=None, exported_as=None): 
         self.name = name
         self.operation_type = operation_type
         self.predicate = predicate 
         self.operation_on = operation_on 
         self.groupby = groupby
-        self.basetables = basetables
         self.policy = policy
+        self.exported_as = exported_as 
     
     def __repr__(self):
-        return "< NODE: name: %s, optype: %s, basetables: %s, predicate: %s>\n" % (self.name, self.operation_type, self.basetables, self.predicate)
+        return "< NODE: name: %s, optype: %s, predicate: %s>\n" % (self.name, self.operation_type, self.predicate)
     
     def check_commutativity(operations): 
         left, right = self.predicate.split('IN')
@@ -42,13 +42,12 @@ class Function:
 
 
 class Filter: 
-    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False, export=False, on=False):
+    def __init__(self, new_view_name, tables, predicates, policy=False, exported_as=None, on=False):
         self.new_view_name = new_view_name
         self.tables = tables
-        self.predicates = predicates 
+        self.predicates = predicates  
         self.policy = policy 
-        self.affected_base_tables = affected_base_tables
-        self.export = export 
+        self.exported_as = exported_as 
         self.on = on 
     
     def __repr__(self):
@@ -74,7 +73,7 @@ class Filter:
             if i == len(self.predicates) - 1:
                 i = ""
             node_name = self.new_view_name + str(i)
-            new_node = Node(node_name, "filter", self.affected_base_tables, self.policy, predicate=predicate)  
+            new_node = Node(node_name, "filter", self.policy, predicate=predicate, exported_as=self.exported_as)  
             graph[new_node] = []
             upstream = set()
             print('predicate: {}'.format(predicate))
@@ -113,13 +112,12 @@ class Filter:
 
 
 class Transform: 
-    def __init__(self, new_view_name, tables, predicates, affected_base_tables=None, policy=False, export=False):
+    def __init__(self, new_view_name, tables, predicates, policy=False, exported_as=None):
         self.new_view_name = new_view_name
         self.tables = tables
         self.predicates = predicates 
         self.policy = policy
-        self.affected_base_tables = affected_base_tables
-        self.export = export 
+        self.exported_as = exported_as 
     
     def __repr__(self):
         return "<Transform: view name: %s,\n tables: %s,\n predicates: %s, policy: %s>\n" % (self.new_view_name, self.tables, self.predicates, self.policy)
@@ -131,7 +129,7 @@ class Transform:
             intermediate_view_names = [x.name.replace('$', '') for x in intermediate_views]
             # print("TABLE: {} intermediate views: {} schema: {}".format(tbl, intermediate_view_names, schema))
             if tbl in schema.keys():# base table 
-                tbl_node = Node(tbl, None, [tbl], self.policy) 
+                tbl_node = Node(tbl, None, [tbl], self.policy, exported_as=self.exported_as)
                 graph[tbl_node] = []  
             elif tbl in intermediate_view_names: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
@@ -144,7 +142,7 @@ class Transform:
             if i == len(self.predicates) - 1:
                 i = ""
             node_name = self.new_view_name + str(i)
-            new_node = Node(node_name, "transform", self.affected_base_tables, self.policy, predicate=predicate)  
+            new_node = Node(node_name, "transform", self.policy, predicate=predicate, exported_as=self.exported_as)  
             graph[new_node] = []
             upstream = set()
             
@@ -187,16 +185,15 @@ class Transform:
 
 
 class Aggregate: 
-    def __init__(self, new_view_name, operation_type, tables, operation_on, predicates, affected_base_tables=None, groupby=None, policy=False, export=False):
+    def __init__(self, new_view_name, operation_type, tables, operation_on, predicates, groupby=None, policy=False, exported_as=None):
         self.new_view_name = new_view_name
         self.operation_type = operation_type 
         self.operation_on = operation_on 
         self.tables = tables
         self.predicates = predicates 
         self.groupby = groupby 
-        self.affected_base_tables = affected_base_tables
         self.policy = policy 
-        self.export = export 
+        self.exported_as = exported_as 
     
     def __repr__(self):
         return "<Aggregate: op type: %s,\n op on: %s,\n tables: %s,\n predicates: %s,\n groupby: %s, policy: %s>\n" % (self.operation_type, self.operation_on, self.tables, self.predicates, self.groupby, self.policy)
@@ -218,7 +215,7 @@ class Aggregate:
         if '.' in self.operation_on: 
             print("AGGREGATE HERE {}".format(self.new_view_name))
             node_name = self.new_view_name
-            new_node = Node(node_name, self.operation_type, self.affected_base_tables, self.policy, operation_on=self.operation_on, groupby=self.groupby)  
+            new_node = Node(node_name, self.operation_type, self.policy, operation_on=self.operation_on, groupby=self.groupby, exported_as=self.exported_as)  
             graph[new_node] = []
             print("AGGREGATE NODE: ")
             tbl, col = self.operation_on.split('.') 
@@ -235,7 +232,7 @@ class Aggregate:
                 if i == len(self.predicates) - 1:
                     i = ""
                 node_name = self.new_view_name + str(i)
-                node = Node(node_name, self.operation_type, self.affected_base_tables, self.policy, predicate=predicate)  
+                node = Node(node_name, self.operation_type, self.affected_base_tables, self.policy, predicate=predicate, exported_as=self.exported_as)  
                 graph[node] = []
                 upstream = set()
                 left, right = predicate.split('IN')

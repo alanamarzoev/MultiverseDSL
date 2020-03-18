@@ -168,40 +168,55 @@ def make_move(graph, roots):
     return result_graph 
 
 
+def merge_graphs(graph1, graph2): 
+    new_graph = graph1.copy()
+    for node, connected in new_graph.items(): 
+        if node in graph2: 
+            connected2 = graph2[node]
+            for conn in connected2:
+                if conn not in graph1[node]:
+                    print("adding {} to graph".format(node))
+                    new_graph[node].append(conn)
+
+    for node, connected in graph2.items(): 
+        if node not in new_graph: 
+            new_graph[node] = connected 
+
+    return new_graph 
+
+
 def planning(queries, policies): 
     print('STARTING PLANNING *********************************')
-    # figure out what policy nodes apply to each basetable (preserving their order)
-    basetable_to_policies = {}
-    for policy in policies: 
-        for node, edges in policy.items(): 
-            if node.operation_type is not None:
-                for tbl in node.basetables: 
-                    if tbl not in basetable_to_policies: 
-                        basetable_to_policies[tbl] = []
-                    basetable_to_policies[tbl].append(node)
 
     # insert policy nodes directly below basetables, prior to any query computation nodes.
     # this configuration will always be correct but it is clearly not optimal.
     query = queries[0]
     print('QUERY: {}'.format(query))
     print('POLICIES: {}'.format(policies[0]))
-    sys.exit(0)
-    for basetable, pols in basetable_to_policies.items(): 
-        connected = None 
-        basetable_node = None 
-        for node, conn in query.items(): 
-            print("node: {}".format(node))
-            if node is not None and node.name == basetable:
-                connected = conn
-                basetable_node = node 
-       
-        if len(pols) > 0: 
-            query[basetable_node] = [pols[0]]
-            last = pols[0]
-            for pol in range(1, len(pols)): 
-                query[last] = [pols[pol]] 
-                last = pols[pol]
-            query[last] = connected 
+
+    new_base_tables = {}
+    for policy in policies: 
+        for node, connected in policy.items(): 
+            if len(connected) == 0: 
+                if node.exported_as is not None: 
+                    new_base_tables[node.exported_as] = node
+                else: 
+                    raise NotImplementedError 
+    
+    merged_policy_graph = policies[0]
+    for i, policy in enumerate(policies): 
+        if i > 0: 
+            merged_policy_graph = merge_graphs(merged_policy_graph, policy)
+    
+
+    new_query = query.copy()
+    for node, connected in query.items(): 
+        if node.name in new_base_tables: 
+            replacement = new_base_tables[node.name]
+            new_query[replacement] = connected
+            del new_query[node]
+
+    unoptimized_graph = merge_graphs(merged_policy_graph, new_query)
     
     # now, our goal is to push the policy nodes as far down in the graph as possible.
     # we do this by comparing every policy node and its neighbor and seeing if we can 
@@ -212,8 +227,8 @@ def planning(queries, policies):
     # user dependent, continue to push it down, otherwise don't. TODO include the branching
     # factor in this cost model?
 
-    start_graph = query.copy()
-    frontier = [query]
+    start_graph = unoptimized_graph.copy()
+    frontier = [start_graph]
     while len(frontier) > 0: 
         graph = frontier.pop(0)
         new_graph = make_move(graph.copy(), basetable_to_policies.keys()) 

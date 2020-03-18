@@ -34,20 +34,48 @@ def load_schema(schema_path):
 
 def load_policies(schema, benchmark): 
     if benchmark == 'hotcrp': 
-        event_chain = hot_crp_event_chain 
+        event_chain = hotcrp_policy_nodes
     elif benchmark == 'twitter': 
         event_chain = twitter_event_chain 
     else: 
         raise NotImplementedError
-    full_policy = Function(event_chain, schema) 
-    full_policy = full_policy.to_dataflow(schema)
 
-    return [full_policy]
+    name_to_op = {}
+    for op in event_chain: 
+        name_to_op[op.new_view_name] = op 
+
+    starts = []
+    chains = []
+    for node in event_chain: 
+        if node.exported_as is not None: 
+            starts.append(node)
+
+    for i, node in enumerate(starts): 
+        chain = [node]
+        parents = node.tables
+        while len(parents) > 0: 
+            new_parents = []
+            for parent in parents: 
+                if parent in name_to_op: 
+                    parent_node = name_to_op[parent]
+                    chain.append(parent_node)
+                    for tbl in parent_node.tables:  
+                        new_parents.append(tbl)
+            parents = new_parents
+        chains.append(chain)
+
+    policies = []
+    for chain in chains: 
+        chain.reverse()
+        policy = Function(chain, schema) 
+        policy = policy.to_dataflow(schema)
+        policies.append(policy)
+    return policies
 
 
 def load_queries(schema, benchmark):
     if benchmark == 'hotcrp': 
-        full_query = hot_crp_full_query
+        full_query = hotcrp_query_nodes
     elif benchmark == 'twitter': 
         full_query = twitter_full_query  
     else: 
@@ -92,9 +120,11 @@ def main():
     queries = load_queries(schema, args.benchmark)
     # visualize(queries[0]) 
     policies = load_policies(schema, args.benchmark)
-    # visualize(policies[0])
+    # for policy in policies: 
+    #     visualize(policy)
     final_graph = planning(queries, policies)
     print('final graph: {}'.format(final_graph))
+    # visualize(final_graph)
     for graph in final_graph: 
         visualize(graph) 
 

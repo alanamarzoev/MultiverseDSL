@@ -4,25 +4,36 @@ from dataflow import *
 # HotCRP policies: --------------------------------------------
 
 my_submitted_reviews = Filter("MySubmittedReviews", 
-                                ["PaperReview"], 
-                                ["$UID IN PaperReview.contactId"],
-                                affected_base_tables=["PaperReview"]) 
+                              ["PaperReview"], 
+                              ["$UID IN PaperReview.contactId"]) 
 
-my_conflicts = Filter("MyConflicts", ["PaperConflict"], ["$UID IN PaperConflict.contactID"], affected_base_tables=["PaperConflict"], policy=True)
+my_conflicts = Filter("MyConflicts", [
+                      "PaperConflict"], 
+                      ["$UID IN PaperConflict.contactID"], 
+                      policy=True)
 
-unconflicted_papers = Filter("UnconflictedPapers", ["Paper", "MyConflicts"], ["Paper.paperID NOT IN MyConflicts.paperId"], affected_base_tables=["Paper"], policy=True, exported_as="Paper")
+unconflicted_papers = Filter("UnconflictedPapers", 
+                            ["Paper", "MyConflicts"], 
+                            ["Paper.paperID NOT IN MyConflicts.paperId"],  
+                            policy=True, 
+                            exported_as="Paper")
 
-unconflicted_paper_reviews = Filter("UnconflictedPaperReview", ["PaperReview", "MyConflicts"], ["PaperReview.paperID NOT IN MyConflicts.paperId"], affected_base_tables=["PaperReview"], policy=True)
+unconflicted_paper_reviews = Filter("UnconflictedPaperReview", 
+                                    ["PaperReview", "MyConflicts"], 
+                                    ["PaperReview.paperID NOT IN MyConflicts.paperId"], 
+                                    policy=True)
 
 visible_reviews_unanonymized = Filter("VisibleReviews",
                                     ["UnconflictedPaperReview", "MySubmittedReviews"], 
                                     ["UnconflictedPaperReview.paperId IN MySubmittedReviews.paperId"], 
-                                    affected_base_tables=["PaperReview"], policy=True) 
+                                    policy=True) 
 
 visible_reviews_anonymized = Transform("VisibleReviewsAnonymized", 
                                     ["VisibleReviews"], 
                                     ["VisibleReviews.contactID => `anonymous`"],
-                                    affected_base_tables=["PaperReview"], policy=True, exported_as="PaperReview") # only see anonymized reviews for papers we've already submitted reviews for
+                                    policy=True, exported_as="PaperReview") # only see anonymized reviews for papers we've already submitted reviews for
+
+hotcrp_policy_nodes = [my_submitted_reviews, my_conflicts, unconflicted_papers, unconflicted_paper_reviews, visible_reviews_unanonymized, visible_reviews_anonymized]
 
 
 # HotCRP query: 
@@ -47,7 +58,7 @@ final_join = Filter("Final",
                     on=True, 
                     policy=False) # JOIN visible review count with rest of paper information 
 
-
+hotcrp_query_nodes = [paper_paperreview, r_submitted, final_join]
 
 
 # Twitter policies: --------------------------------------------
