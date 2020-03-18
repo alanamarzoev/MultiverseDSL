@@ -108,14 +108,6 @@ def inject_node(graph, a, b):
 def make_move(graph, roots):
     inner_frontier = [roots]
     result_graph = None 
-     
-    # import pprint 
-    # for values in graph.values(): 
-    #     for val in values: 
-    #         if type(val) != Node: 
-    #             print('val: {}'.format(val))
-    # pprint.pprint(graph.values())
-    # return
 
     while len(inner_frontier) > 0: 
         rootset = inner_frontier.pop(0)
@@ -228,18 +220,16 @@ def planning(queries, policies):
     # factor in this cost model?
 
     start_graph = unoptimized_graph.copy()
-    frontier = [start_graph]
+    frontier = [unoptimized_graph]
+    all_graphs = [unoptimized_graph]
+
     while len(frontier) > 0: 
         graph = frontier.pop(0)
-        new_graph = make_move(graph.copy(), basetable_to_policies.keys()) 
-        # print('new graph: {}'.format(new_graph))
+        new_graph = make_move(graph.copy(), new_base_tables.keys()) 
         if new_graph is not None: 
             frontier.append(new_graph) 
-        else: 
-            break 
+            frontier.append(graph)
+            all_graphs.append(new_graph)
 
-    if len(frontier) == 0: 
-        frontier = [query]
-
-    return frontier 
+    return all_graphs 
     
