@@ -63,26 +63,57 @@ hotcrp_query_nodes = [paper_paperreview, r_submitted, final_join]
 
 # Twitter policies: --------------------------------------------
 
-# private_users = Filter("PrivateUsers", ["Users"], ["True IN $Users.is_private"], affected_base_tables=["Users"], policy=True)
+private_users = Filter("PrivateUsers", 
+                      ["Users"], 
+                      ["True IN Users.is_private"],
+                      policy=True)
 
-# user_blocked_accounts = Filter("UserBlockedAccounts", ["BlockedAccounts"], ["UID IN $BlockedAccounts.user_id"], affected_base_tables=["BlockedAccounts"], policy=True)
+user_blocked_accounts = Filter("UserBlockedAccounts", 
+                              ["BlockedAccounts"], 
+                              ["$UID IN BlockedAccounts.user_id"],
+                              policy=True)
 
-# user_blocked_by_accounts = Filter("UserBlockedByAccounts", ["BlockedAccounts"], ["UID IN $BlockedAccounts.blocked_id"], affected_base_tables=["BlockedAccounts"], policy=True)
+user_blocked_by_accounts = Filter("UserBlockedByAccounts", 
+                                 ["BlockedAccounts"], 
+                                 ["UID IN BlockedAccounts.blocked_id"], 
+                                 policy=True)
 
-# users_you_follow = Filter(["UsersYouFollow"], ["Follows"], ["UID IN Follows.user_id"], affected_base_tables=["Follows"], policy=True)
+users_you_follow = Filter(["UsersYouFollow"], 
+                          ["Follows"], 
+                          ["UID IN Follows.user_id"], 
+                          policy=True)
 
-# you_want_sensitive_tweets_marked = Filter("YouWantSensitiveTweetsMarked", ["Users"], ["UID in Users.id", "True IN Users.is_marking_sensitive_content"], affected_base_tables=["Users"], policy=True)
+you_want_sensitive_tweets_marked = Filter("YouWantSensitiveTweetsMarked", 
+                                         ["Users"], 
+                                         ["UID in Users.id", "True IN Users.is_marking_sensitive_content"], 
+                                         policy=True)
 
-# visible_tweets = Filter("VisibleTweets", ["Tweets", "UserBlockedByAccounts", "UsersBlockedAccounts"], 
-#                                                   ["Tweets.user_id IN UsersYouFollow OR Tweets.user_id NOT IN PrivateUsers", "Tweets.user_id NOT IN UserBlockedAccounts", "Tweets.user_id NOT IN UserBlockedByAccounts"], 
-#                                                    affected_base_tables=["Tweets"], policy=True)
+visible_tweets1a = Filter("VisibleTweets1a", 
+                        ["Tweets", "UserBlockedByAccounts", "UsersBlockedAccounts"], 
+                        ["Tweets.user_id IN UsersYouFollow", 
+                        "Tweets.user_id NOT IN UserBlockedAccounts", 
+                        "Tweets.user_id NOT IN UserBlockedByAccounts"], 
+                        policy=True) # FIRST OR CLAUSE 
 
-# visible_and_marked_tweets = Transform("VisibleAndMarkedTweets", ["VisibleTweets", "YouWantSensitiveTweetsMarked"], 
-#                                                                 ["UID IN YouWantSensitiveTweetsMarked", "True IN VisibleTweets.is_sensitive => VisibleTweets.content = 'Marked as sensitive.'"], 
-#                                                                 affected_base_tables=["Tweets"], policy=True)
+visible_tweets1b = Filter("VisibleTweets1b", 
+                        ["Tweets", "UserBlockedByAccounts", "UsersBlockedAccounts"], 
+                        ["Tweets.user_id NOT IN PrivateUsers", 
+                        "Tweets.user_id NOT IN UserBlockedAccounts", 
+                        "Tweets.user_id NOT IN UserBlockedByAccounts"], 
+                        policy=True) # SECOND OR CLAUSE
+
+visible_tweets = Filter("VisibleTweets", 
+                        ["VisibleTweets1a", "VisibleTweets1b"], 
+                        [], policy=True) # UNION THE RESULTS OF THE OR 
 
 
-# # Twitter query: 
+visible_and_marked_tweets = Transform("VisibleAndMarkedTweets", 
+                                     ["VisibleTweets", "YouWantSensitiveTweetsMarked"], 
+                                     ["UID IN YouWantSensitiveTweetsMarked", "True IN VisibleTweets.is_sensitive => VisibleTweets.content = 'Marked as sensitive.'"], 
+                                     policy=True, exported_as="Tweets")
 
-# tweets_with_user_info = Filter("TweetsWithUserInfo", ["Tweets", "Users"], ["Tweets.user_id = Users.id"], policy=False)
-# retweets = Filter("Retweets", ["TweetsWithUserInfo"], ["TweetsWithUserInfo.retweet_id = TweetsWithUserInfo.rt_id"], policy=False)
+
+# Twitter query: 
+
+tweets_with_user_info = Filter("TweetsWithUserInfo", ["Tweets", "Users"], ["Tweets.user_id = Users.id"], policy=False)
+retweets = Filter("Retweets", ["TweetsWithUserInfo"], ["TweetsWithUserInfo.retweet_id = TweetsWithUserInfo.rt_id"], policy=False)
