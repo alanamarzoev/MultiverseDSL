@@ -39,6 +39,12 @@ class Function:
 
         return intermediate_graph
 
+def get_node_by_name(graph, node_name): 
+    for node in graph.keys(): 
+        if node.name == node_name: 
+            return node 
+    return None 
+
 
 class Filter: 
     def __init__(self, new_view_name, tables, predicates, policy=False, exported_as=None, on=False):
@@ -66,6 +72,16 @@ class Filter:
             else: 
                 raise NotImplementedError
     
+        if len(self.predicates) == 0: 
+            new_node = Node(node_name, "filter", self.policy, predicate=None, exported_as=self.exported_as)
+            graph[new_node] = []
+            left, right = self.tables
+            print("***UNION: LEFT RIGHT {} x {}".format(left, right))
+            left_node = get_node_by_name(graph, left)
+            right_node = get_node_by_name(graph, right)
+            graph[left_node].append(new_node)
+            graph[right_node].append(new_node)
+
         prev = None
         for i, predicate in enumerate(self.predicates): 
             if i == len(self.predicates) - 1:
@@ -122,7 +138,7 @@ class Transform:
             tbl = tbl.replace('$', '')
             intermediate_view_names = [x.name.replace('$', '') for x in intermediate_views]
             # print("TABLE: {} intermediate views: {} schema: {}".format(tbl, intermediate_view_names, schema))
-            if tbl in schema.keys():# base table 
+            sif tbl in schema.keys():# base table 
                 tbl_node = Node(tbl, None, [tbl], self.policy, exported_as=self.exported_as)
                 graph[tbl_node] = []  
             elif tbl in intermediate_view_names: 
