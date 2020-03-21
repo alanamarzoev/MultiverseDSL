@@ -199,8 +199,7 @@ def planning(queries, policies):
     for i, policy in enumerate(policies): 
         if i > 0: 
             merged_policy_graph = merge_graphs(merged_policy_graph, policy)
-    
-
+  
     new_query = query.copy()
     for node, connected in query.items(): 
         if node.name in new_base_tables: 

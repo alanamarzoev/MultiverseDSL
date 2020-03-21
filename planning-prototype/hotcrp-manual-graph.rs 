@@ -1,0 +1,139 @@
+
+// set up graph
+let mut g = start_simple("hotcrp");
+let (paper, paper_review, paper_conflict) = g.migrate(|mig| {
+    let paper = mig.add_base("Paper", &["paperId", "leadContactId", "authorInformation"], Base::default());
+    let paper_review = mig.add_base("PaperReview", &["paperId", "reviewId", "contactId", "reviewSubmitted"], Base::default());
+    let paper_conflict = mig.add_base("PaperConflict", &["paperId", "contactId"], Base::default());
+
+    (paper, paper_review, paper_conflict)
+); 
+
+let uid = 4; // why not
+
+let my_conflicts = g.migrate(move |mig| {
+    let my_conflicts = mig.add_ingredient(
+        "MyConflicts",
+        &["paperId", "contactId"],
+        Filter::new(paper_conflict,
+                    &[None, 
+                      Some(FilterCondition::Comparison(
+                           Operator::Equal,
+                           Value::Constant(uid.into())))]
+        ));
+    my_conflicts 
+});
+
+let (my_submitted_reviews0, my_submitted_reviews) = g.migrate(move |mig| {
+    let my_submitted_reviews0 = mig.add_ingredient(
+        "MySubmittedReviews0",
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"],
+        Filter::new(paper_review, 
+                    &[None, None, Some(FilterCondition::Comparison(
+                    Operator::Equal,
+                    Value::Constant(uid.into()))), None]
+        ));
+
+    let my_submitted_reviews = mig.add_ingredient(
+        "MySubmittedReviews",
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"],
+        Filter::new(my_submitted_reviews0, 
+                    &[None, None, None, 
+                    Some(FilterCondition::Comparison(
+                    Operator::Equal,
+                    Value::Constant(true.into())))]
+        ));
+        
+    (my_submitted_reviews0, my_submitted_reviews)
+});
+
+let (unconflicted_papers, unconflicted_papers0, 
+    unconflicted_paper_reviews, unconflicted_paper_reviews0) = g.migrate(move |mig| {
+    let unconflicted_papers0 = mig.add_ingredient(
+        "UnconflictedPapers0",
+        &["paperId", "leadContactId", "authorInformation", "contactId"],
+        Join::new(paper, my_conflicts, JoinType::Left, vec![B(0, 0), L(0), R(0)])
+    );
+
+    let unconflicted_papers = mig.add_ingredient(
+        "UnconflictedPapers", 
+        &["paperId", "leadContactId", "authorInformation", "contactId"], 
+        Filter::new(unconflicted_papers0, 
+            &[None, None, None, Some(FilterCondition::Comparison(
+            Operator::NotEqual,
+            Value::Constant(None.into())))]
+    )); 
+
+    let unconflicted_paper_reviews0 = mig.add_ingredient(
+        "UnconflictedPaperReviews0",
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"],
+        Join::new(paper_reviews, my_conflicts, JoinType::Left, vec![B(0, 0), L(0), R(0)])
+    );
+
+    let unconflicted_paper_reviews = mig.add_ingredient(
+        "UnconflictedPaperReviews", 
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"], 
+        Filter::new(unconflicted_paper_reviews0, 
+            &[None, None, None, Some(FilterCondition::Comparison(
+            Operator::NotEqual,
+            Value::Constant(None.into())))]
+    )); 
+
+    (unconflicted_papers, unconflicted_papers0, unconflicted_paper_reviews, unconflicted_paper_reviews0) 
+}); 
+
+
+let (visible_reviews, visible_reviews_anonymized) = g.migrate(move |mig| {
+    let visible_reviews = mig.add_ingredient(
+        "VisibleReviews",
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"],
+        Join::new(unconflicted_paper_reviews, 
+                  my_submitted_reviews, 
+                  JoinType::Inner, vec![B(0, 0), L(0), R(0)])
+    );
+
+    let visible_reviews_anonymized = mig.add_ingredient(
+        "VisibleReviewsAnonymized", 
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"], 
+        Rewrite::new(visible_reviews, visible_reviews, 3, "Anonymous".into(), 0); // TODO ensure signal key is correct. 
+    )); 
+
+    (visible_reviews, visible_reviews_anonymized)
+}); 
+
+let (paper_paper_review0, paper_paper_review) = g.migrate(move |mig| {
+    let paper_paper_review0 = mig.add_ingredient(
+        "Paper_PaperReview0",
+        &["paperId", "leadContactId", "authorInformation", "reviewId", "contactId", "reviewSubmitted"],
+        Join::new(unconflicted_papers, 
+                  visible_reviews_anonymized, 
+                  JoinType::Left, vec![B(0, 0), L(0), R(0)])
+    );
+
+    let paper_paper_review = mig.add_ingredient(
+        "Paper_PaperReview", 
+        &["paperId", "reviewId", "contactId", "reviewSubmitted"], 
+        Filter::new(paper_paper_reviews0, 
+            &[None, None, Some(FilterCondition::Comparison(
+            Operator::Equal,
+            Value::Constant(uid.into()))), None]
+    )); 
+
+    (paper_paper_review0, paper_paper_review)
+}); 
+
+let (r_submitted, final) = g.migrate(move |mig| {
+    let r_submitted = mig.add_ingredient(
+        "R_submitted", 
+        &["paperId"], 
+        Aggregation::COUNT.over(visible_reviews_anonymized, 3, &[0]) // TODO i think this is wrong 
+    ); 
+
+    let final = mig.add_ingredient(
+        "Final",
+        &["paperId", "leadContactId", "authorInformation", "reviewId", "contactId", "reviewSubmitted"],
+        Join::new(paper_paper_review, 
+                  r_submitted, 
+                  JoinType::Left, vec![B(0, 0), L(0), R(0)])
+    );
+}); 

@@ -36,7 +36,6 @@ class Function:
             subgraph, output_views = operation.to_dataflow(schema, intermediate_graph, intermediate_views)
             intermediate_graph = subgraph 
             intermediate_views = output_views 
-            print("intermediate graph: {}".format(intermediate_graph))
 
         return intermediate_graph
 
@@ -54,7 +53,6 @@ class Filter:
         return "< Filter: view name: %s,\n tables: %s,\n predicates: %s, policy: %s>\n" % (self.new_view_name, self.tables, self.predicates, self.policy)
     
     def to_dataflow(self, schema, graph, intermediate_views): 
-        print('\n\n\n\n {}'.format(self))
         for tbl in self.tables: 
             tbl = tbl.replace('$', '')
 
@@ -76,18 +74,15 @@ class Filter:
             new_node = Node(node_name, "filter", self.policy, predicate=predicate, exported_as=self.exported_as)  
             graph[new_node] = []
             upstream = set()
-            print('predicate: {}'.format(predicate))
             left, right = predicate.split('IN')
 
             if '.' in left and prev is None: 
                 left_table, left_col = left.split('.')
                 upstream.add(left_table.replace('$', '').strip())
-                print('ADDING LEFT {} to upstream'.format(left))
 
             if '.' in right and prev is None: 
                 right_table, right_col = right.split('.')
                 upstream.add(right_table.replace('$', '').strip())
-                print('ADDING RIGHT {} to upstream'.format(left))
             
             intermediate_views.append(new_node)
 
@@ -107,7 +102,6 @@ class Filter:
                 
                 if not found: 
                     raise NotImplementedError
-        print("GRAPH: {} INTERMEDIATE VIEWS: {}".format(graph, intermediate_views))
         return graph, intermediate_views
 
 
@@ -205,19 +199,31 @@ class Aggregate:
             intermediate_view_names = [x.name for x in intermediate_views]
             if tbl in schema.keys():# base table 
                 tbl_node = Node(tbl, None, [tbl], self.policy) 
-                graph[tbl_node] = []  
+                found = False 
+                for node in graph.keys(): 
+                    if tbl_node.name == node.name: 
+                        found = True
+                if not found: 
+                    print("(1) graph[tbl] {} not in {}".format(tbl_node, graph.keys()))
+                    graph[tbl_node] = []  
             elif tbl in intermediate_view_names: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
-                graph[tbl_node] = []  
+                found = False 
+                for node in graph.keys(): 
+                    if tbl_node.name == node.name: 
+                        found = True
+                if not found: 
+                    print("(2) graph[tbl] {} not in {}".format(tbl_node, graph.keys()))
+                    graph[tbl_node] = []  
             else: 
                 raise NotImplementedError
     
         if '.' in self.operation_on: 
-            print("AGGREGATE HERE {}".format(self.new_view_name))
             node_name = self.new_view_name
             new_node = Node(node_name, self.operation_type, self.policy, operation_on=self.operation_on, groupby=self.groupby, exported_as=self.exported_as)  
             graph[new_node] = []
-            print("AGGREGATE NODE: ")
+            print("(3) graph[tbl] {}".format(new_node))
+                    
             tbl, col = self.operation_on.split('.') 
             found = False 
             for node in graph.keys(): 
@@ -234,6 +240,8 @@ class Aggregate:
                 node_name = self.new_view_name + str(i)
                 node = Node(node_name, self.operation_type, self.affected_base_tables, self.policy, predicate=predicate, exported_as=self.exported_as)  
                 graph[node] = []
+                print("(4) graph[tbl] {}".format(node))
+                    
                 upstream = set()
                 left, right = predicate.split('IN')
                 if '.' in left: 
@@ -256,5 +264,4 @@ class Aggregate:
                     if not found: 
                         raise NotImplementedError
         
-                    
         return graph, intermediate_views

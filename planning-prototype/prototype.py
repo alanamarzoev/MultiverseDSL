@@ -80,9 +80,9 @@ def load_queries(schema, benchmark):
         full_query = twitter_full_query  
     else: 
         raise NotImplementedError
-
+  
     full_query = Function(full_query, schema)
-    full_query = full_query.to_dataflow(schema)
+    full_query = full_query.to_dataflow(schema)    
     return [full_query] 
 
  
@@ -121,7 +121,7 @@ def main():
     # visualize(queries[0]) 
     policies = load_policies(schema, args.benchmark)
     # for policy in policies: 
-    #     visualize(policy)
+        # visualize(policy)
     final_graph = planning(queries, policies)
     print('final graph: {}'.format(final_graph))
     # visualize(final_graph)
