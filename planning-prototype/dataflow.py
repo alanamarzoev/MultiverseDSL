@@ -29,7 +29,6 @@ class Function:
         return "<Function: event chain: %s,\n schema: %s>\n" % (self.event_chain, self.schema)
 
     def to_dataflow(self, schema): 
-        print(self.event_chain)
         intermediate_views = []
         intermediate_graph = {}
         for operation in self.event_chain: 
@@ -63,20 +62,26 @@ class Filter:
             tbl = tbl.replace('$', '')
 
             intermediate_view_names = [x.name for x in intermediate_views]
+            in_intermediate = False
+            for name in intermediate_view_names: 
+                if tbl == name: 
+                    in_intermediate = True
             if tbl in schema.keys(): # base table 
                 tbl_node = Node(tbl, None, [tbl], self.policy)  
-                graph[tbl_node] = []  
-            elif tbl in intermediate_view_names: 
+                if tbl_node not in graph: 
+                    graph[tbl_node] = []  
+            elif in_intermediate: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
-                graph[tbl_node] = []  
+                if tbl_node not in graph: 
+                    graph[tbl_node] = []  
             else: 
                 raise NotImplementedError
     
         if len(self.predicates) == 0: 
-            new_node = Node(node_name, "filter", self.policy, predicate=None, exported_as=self.exported_as)
+            new_node = Node(self.new_view_name, "filter", self.policy, predicate=None, exported_as=self.exported_as)
             graph[new_node] = []
+            intermediate_views.append(new_node)
             left, right = self.tables
-            print("***UNION: LEFT RIGHT {} x {}".format(left, right))
             left_node = get_node_by_name(graph, left)
             right_node = get_node_by_name(graph, right)
             graph[left_node].append(new_node)
@@ -92,11 +97,14 @@ class Filter:
             upstream = set()
             left, right = predicate.split('IN')
 
+            print("PREDICATE: {}".format(predicate))
             if '.' in left and prev is None: 
+                print('h1')
                 left_table, left_col = left.split('.')
                 upstream.add(left_table.replace('$', '').strip())
 
             if '.' in right and prev is None: 
+                print('h2')
                 right_table, right_col = right.split('.')
                 upstream.add(right_table.replace('$', '').strip())
             
@@ -108,16 +116,22 @@ class Filter:
 
             prev = new_node 
 
+            if i == 0: 
+                for table in self.tables: 
+                    upstream.add(table) 
+
             for tbl in upstream: 
                 found = False
                 for node in graph.keys(): 
                     # print('looking: {}'.format(node.name))
                     if node.name == tbl: 
+                        print('appending {} to node {} outgoing edges'.format(new_node, upstream))
                         graph[node].append(new_node)
                         found = True
                 
                 if not found: 
                     raise NotImplementedError
+
         return graph, intermediate_views
 
 
@@ -133,21 +147,26 @@ class Transform:
         return "<Transform: view name: %s,\n tables: %s,\n predicates: %s, policy: %s>\n" % (self.new_view_name, self.tables, self.predicates, self.policy)
 
     def to_dataflow(self, schema, graph, intermediate_views): 
-        print('\n\n\n\n {}'.format(self))
         for tbl in self.tables: 
             tbl = tbl.replace('$', '')
             intermediate_view_names = [x.name.replace('$', '') for x in intermediate_views]
-            # print("TABLE: {} intermediate views: {} schema: {}".format(tbl, intermediate_view_names, schema))
-            sif tbl in schema.keys():# base table 
+            in_intermediate = False
+            for name in intermediate_view_names: 
+                if tbl == name: 
+                    in_intermediate = True
+            if tbl in schema.keys(): # base table 
                 tbl_node = Node(tbl, None, [tbl], self.policy, exported_as=self.exported_as)
-                graph[tbl_node] = []  
-            elif tbl in intermediate_view_names: 
+                if tbl_node not in graph: 
+                    graph[tbl_node] = []  
+            elif in_intermediate: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
-                graph[tbl_node] = []  
+                if tbl_node not in graph: 
+                    graph[tbl_node] = []  
             else: 
                 raise NotImplementedError
     
         prev = None
+        prev_connected = set()
         for i, predicate in enumerate(self.predicates): 
             if i == len(self.predicates) - 1:
                 i = ""
@@ -156,6 +175,7 @@ class Transform:
             graph[new_node] = []
             upstream = set()
             
+            print("predicate: {}".format(predicate))
             if 'IN' in predicate: 
                 left, right = predicate.split('IN')
                 if '.' in left: 
@@ -175,21 +195,30 @@ class Transform:
 
             if prev is not None: 
                 upstream.add(prev.name)
-                print('adding prev to upstream: {}'.format(prev))
+
+            if i == 0: 
+                for table in self.tables: 
+                    upstream.add(table)
 
             prev = new_node 
-
-            for tbl in upstream: 
-                print('tbl: {}'.format(tbl))
+            
+            new_upstream = set()
+            for item in upstream: 
+                if item not in prev_connected: 
+                    new_upstream.add(item)
+            
+            for tbl in new_upstream: 
                 found = False
                 for node in graph.keys(): 
-                    print('looking: {}'.format(node.name))
                     if node.name == tbl: 
                         graph[node].append(new_node)
                         found = True
                 
                 if not found: 
                     raise NotImplementedError
+
+            for t in new_upstream: 
+                prev_connected.add(t)
                     
         return graph, intermediate_views
 
@@ -220,7 +249,6 @@ class Aggregate:
                     if tbl_node.name == node.name: 
                         found = True
                 if not found: 
-                    print("(1) graph[tbl] {} not in {}".format(tbl_node, graph.keys()))
                     graph[tbl_node] = []  
             elif tbl in intermediate_view_names: 
                 tbl_node = intermediate_views[intermediate_view_names.index(tbl)]
@@ -229,7 +257,6 @@ class Aggregate:
                     if tbl_node.name == node.name: 
                         found = True
                 if not found: 
-                    print("(2) graph[tbl] {} not in {}".format(tbl_node, graph.keys()))
                     graph[tbl_node] = []  
             else: 
                 raise NotImplementedError
@@ -238,7 +265,6 @@ class Aggregate:
             node_name = self.new_view_name
             new_node = Node(node_name, self.operation_type, self.policy, operation_on=self.operation_on, groupby=self.groupby, exported_as=self.exported_as)  
             graph[new_node] = []
-            print("(3) graph[tbl] {}".format(new_node))
                     
             tbl, col = self.operation_on.split('.') 
             found = False 
@@ -256,7 +282,6 @@ class Aggregate:
                 node_name = self.new_view_name + str(i)
                 node = Node(node_name, self.operation_type, self.affected_base_tables, self.policy, predicate=predicate, exported_as=self.exported_as)  
                 graph[node] = []
-                print("(4) graph[tbl] {}".format(node))
                     
                 upstream = set()
                 left, right = predicate.split('IN')

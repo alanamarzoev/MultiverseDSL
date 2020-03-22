@@ -22,7 +22,7 @@ let my_conflicts = g.migrate(move |mig| {
                            Value::Constant(uid.into())))]
         ));
     my_conflicts 
-});
+}).wait().unwrap();
 
 let (my_submitted_reviews0, my_submitted_reviews) = g.migrate(move |mig| {
     let my_submitted_reviews0 = mig.add_ingredient(
@@ -45,7 +45,7 @@ let (my_submitted_reviews0, my_submitted_reviews) = g.migrate(move |mig| {
         ));
         
     (my_submitted_reviews0, my_submitted_reviews)
-});
+}).wait().unwrap();
 
 let (unconflicted_papers, unconflicted_papers0, 
     unconflicted_paper_reviews, unconflicted_paper_reviews0) = g.migrate(move |mig| {
@@ -80,7 +80,7 @@ let (unconflicted_papers, unconflicted_papers0,
     )); 
 
     (unconflicted_papers, unconflicted_papers0, unconflicted_paper_reviews, unconflicted_paper_reviews0) 
-}); 
+}).wait().unwrap(); 
 
 
 let (visible_reviews, visible_reviews_anonymized) = g.migrate(move |mig| {

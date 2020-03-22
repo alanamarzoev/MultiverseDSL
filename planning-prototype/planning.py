@@ -192,8 +192,7 @@ def planning(queries, policies):
             if len(connected) == 0: 
                 if node.exported_as is not None: 
                     new_base_tables[node.exported_as] = node
-                else: 
-                    raise NotImplementedError 
+                
     
     merged_policy_graph = policies[0]
     for i, policy in enumerate(policies): 

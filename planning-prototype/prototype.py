@@ -36,7 +36,7 @@ def load_policies(schema, benchmark):
     if benchmark == 'hotcrp': 
         event_chain = hotcrp_policy_nodes
     elif benchmark == 'twitter': 
-        event_chain = twitter_event_chain 
+        event_chain = twitter_policy_nodes
     else: 
         raise NotImplementedError
 
@@ -83,6 +83,7 @@ def load_queries(schema, benchmark):
   
     full_query = Function(full_query, schema)
     full_query = full_query.to_dataflow(schema)    
+    print("FULL QUERY: {}".format(full_query))
     return [full_query] 
 
  
@@ -112,7 +113,7 @@ def main():
     if args.benchmark == 'hotcrp': 
         schema_path = '../benchmarks/hotcrp/schema.sql'
     elif args.benchmark == 'twitter': 
-        schema_path = '../benchmarks/twitter/schema.sql'
+        schema_path = '../benchmarks/twitter/twitter-schema.sql'
     else: 
         raise NotImplementedError 
 
@@ -120,8 +121,10 @@ def main():
     queries = load_queries(schema, args.benchmark)
     # visualize(queries[0]) 
     policies = load_policies(schema, args.benchmark)
-    # for policy in policies: 
-        # visualize(policy)
+    
+    for i, policy in enumerate(policies): 
+        print("POLICY {}: {}".format(i, policy))
+        visualize(policy)
     final_graph = planning(queries, policies)
     print('final graph: {}'.format(final_graph))
     # visualize(final_graph)

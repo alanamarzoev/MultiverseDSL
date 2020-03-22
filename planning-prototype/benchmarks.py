@@ -78,25 +78,25 @@ user_blocked_by_accounts = Filter("UserBlockedByAccounts",
                                  ["UID IN BlockedAccounts.blocked_id"], 
                                  policy=True)
 
-users_you_follow = Filter(["UsersYouFollow"], 
+users_you_follow = Filter("UsersYouFollow", 
                           ["Follows"], 
                           ["UID IN Follows.user_id"], 
                           policy=True)
 
 you_want_sensitive_tweets_marked = Filter("YouWantSensitiveTweetsMarked", 
                                          ["Users"], 
-                                         ["UID in Users.id", "True IN Users.is_marking_sensitive_content"], 
+                                         ["UID IN Users.id", "True IN Users.is_marking_sensitive_content"], 
                                          policy=True)
 
 visible_tweets1a = Filter("VisibleTweets1a", 
-                        ["Tweets", "UserBlockedByAccounts", "UsersBlockedAccounts"], 
+                        ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
                         ["Tweets.user_id IN UsersYouFollow", 
                         "Tweets.user_id NOT IN UserBlockedAccounts", 
                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
                         policy=True) # FIRST OR CLAUSE 
 
 visible_tweets1b = Filter("VisibleTweets1b", 
-                        ["Tweets", "UserBlockedByAccounts", "UsersBlockedAccounts"], 
+                        ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
                         ["Tweets.user_id NOT IN PrivateUsers", 
                         "Tweets.user_id NOT IN UserBlockedAccounts", 
                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
@@ -109,11 +109,18 @@ visible_tweets = Filter("VisibleTweets",
 
 visible_and_marked_tweets = Transform("VisibleAndMarkedTweets", 
                                      ["VisibleTweets", "YouWantSensitiveTweetsMarked"], 
-                                     ["UID IN YouWantSensitiveTweetsMarked", "True IN VisibleTweets.is_sensitive => VisibleTweets.content = 'Marked as sensitive.'"], 
+                                     ["$UID IN YouWantSensitiveTweetsMarked", "True IN VisibleTweets.is_sensitive",  "VisibleTweets.content => 'Marked as sensitive.'"], 
                                      policy=True, exported_as="Tweets")
+
+twitter_policy_nodes = [private_users, user_blocked_accounts, user_blocked_by_accounts, users_you_follow, you_want_sensitive_tweets_marked, visible_tweets1a, 
+                        visible_tweets1b, visible_tweets, visible_and_marked_tweets]
+
 
 
 # Twitter query: 
 
-tweets_with_user_info = Filter("TweetsWithUserInfo", ["Tweets", "Users"], ["Tweets.user_id = Users.id"], policy=False)
-retweets = Filter("Retweets", ["TweetsWithUserInfo"], ["TweetsWithUserInfo.retweet_id = TweetsWithUserInfo.rt_id"], policy=False)
+tweets_with_user_info = Filter("TweetsWithUserInfo", ["Tweets", "Users"], ["Tweets.user_id IN Users.id"], policy=False)
+retweets = Filter("Retweets", ["TweetsWithUserInfo"], ["TweetsWithUserInfo.retweet_id IN TweetsWithUserInfo.rt_id"], policy=False) # WRONG: no edge from tweets with user info to retweets
+all_tweets = Filter("AllTweets", ["TweetsWithUserInfo", "Retweets"], [], policy=False)
+
+twitter_full_query = [tweets_with_user_info, retweets, all_tweets]
