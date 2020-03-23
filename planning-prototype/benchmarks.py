@@ -88,23 +88,38 @@ you_want_sensitive_tweets_marked = Filter("YouWantSensitiveTweetsMarked",
                                          ["UID IN Users.id", "True IN Users.is_marking_sensitive_content"], 
                                          policy=True)
 
+# visible_tweets1a = Filter("VisibleTweets1a", 
+#                         ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
+#                         ["Tweets.user_id IN UsersYouFollow", 
+#                         "Tweets.user_id NOT IN UserBlockedAccounts", 
+#                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
+#                         policy=True) # FIRST OR CLAUSE 
+
 visible_tweets1a = Filter("VisibleTweets1a", 
-                        ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
-                        ["Tweets.user_id IN UsersYouFollow", 
-                        "Tweets.user_id NOT IN UserBlockedAccounts", 
-                        "Tweets.user_id NOT IN UserBlockedByAccounts"], 
-                        policy=True) # FIRST OR CLAUSE 
+                        ["Tweets", "UsersYouFollow"], 
+                        ["Tweets.user_id IN UsersYouFollow.user_id"], policy=True);  
 
 visible_tweets1b = Filter("VisibleTweets1b", 
-                        ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
-                        ["Tweets.user_id NOT IN PrivateUsers", 
-                        "Tweets.user_id NOT IN UserBlockedAccounts", 
-                        "Tweets.user_id NOT IN UserBlockedByAccounts"], 
-                        policy=True) # SECOND OR CLAUSE
+                        ["Tweets", "PrivateUsers"], 
+                        ["Tweets.user_id NOT IN PrivateUsers"], policy=True)
+
+visible_tweets1c = Filter("VisibleTweets1c", ["VisibleTweets1a", "VisibleTweets1b"], [], policy=True) 
 
 visible_tweets = Filter("VisibleTweets", 
-                        ["VisibleTweets1a", "VisibleTweets1b"], 
-                        [], policy=True) # UNION THE RESULTS OF THE OR 
+                        ["VisibleTweets1c", "UserBlockedAccounts", "UserBlockedByAccounts"], 
+                        ["Tweets.user_id NOT IN UserBlockedAccounts",                         
+                        "Tweets.user_id NOT IN UserBlockedByAccounts"], policy=True)
+
+# visible_tweets1b = Filter("VisibleTweets1b", 
+#                         ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
+#                         ["Tweets.user_id NOT IN PrivateUsers", 
+#                         "Tweets.user_id NOT IN UserBlockedAccounts", 
+#                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
+#                         policy=True) # SECOND OR CLAUSE
+
+# visible_tweets = Filter("VisibleTweets", 
+#                         ["VisibleTweets1a", "VisibleTweets1b"], 
+#                         [], policy=True) # UNION THE RESULTS OF THE OR 
 
 
 visible_and_marked_tweets = Transform("VisibleAndMarkedTweets", 
@@ -113,7 +128,7 @@ visible_and_marked_tweets = Transform("VisibleAndMarkedTweets",
                                      policy=True, exported_as="Tweets")
 
 twitter_policy_nodes = [private_users, user_blocked_accounts, user_blocked_by_accounts, users_you_follow, you_want_sensitive_tweets_marked, visible_tweets1a, 
-                        visible_tweets1b, visible_tweets, visible_and_marked_tweets]
+                        visible_tweets1b, visible_tweets1c, visible_tweets, visible_and_marked_tweets]
 
 
 
