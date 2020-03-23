@@ -31,10 +31,10 @@ visible_reviews_unanonymized = Filter("VisibleReviews",
 visible_reviews_anonymized = Transform("VisibleReviewsAnonymized", 
                                     ["VisibleReviews"], 
                                     ["VisibleReviews.contactID => `anonymous`"],
-                                    policy=True, exported_as="PaperReview") # only see anonymized reviews for papers we've already submitted reviews for
+                                    policy=True, exported_as="PaperReview") 
 
-hotcrp_policy_nodes = [my_submitted_reviews, my_conflicts, unconflicted_papers, unconflicted_paper_reviews, visible_reviews_unanonymized, visible_reviews_anonymized]
-
+hotcrp_policy_nodes = [my_submitted_reviews, my_conflicts, unconflicted_papers, unconflicted_paper_reviews, 
+                        visible_reviews_unanonymized, visible_reviews_anonymized]
 
 # HotCRP query: 
 
@@ -88,12 +88,6 @@ you_want_sensitive_tweets_marked = Filter("YouWantSensitiveTweetsMarked",
                                          ["UID IN Users.id", "True IN Users.is_marking_sensitive_content"], 
                                          policy=True)
 
-# visible_tweets1a = Filter("VisibleTweets1a", 
-#                         ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
-#                         ["Tweets.user_id IN UsersYouFollow", 
-#                         "Tweets.user_id NOT IN UserBlockedAccounts", 
-#                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
-#                         policy=True) # FIRST OR CLAUSE 
 
 visible_tweets1a = Filter("VisibleTweets1a", 
                         ["Tweets", "UsersYouFollow"], 
@@ -110,17 +104,6 @@ visible_tweets = Filter("VisibleTweets",
                         ["Tweets.user_id NOT IN UserBlockedAccounts",                         
                         "Tweets.user_id NOT IN UserBlockedByAccounts"], policy=True)
 
-# visible_tweets1b = Filter("VisibleTweets1b", 
-#                         ["Tweets", "UserBlockedByAccounts", "UserBlockedAccounts"], 
-#                         ["Tweets.user_id NOT IN PrivateUsers", 
-#                         "Tweets.user_id NOT IN UserBlockedAccounts", 
-#                         "Tweets.user_id NOT IN UserBlockedByAccounts"], 
-#                         policy=True) # SECOND OR CLAUSE
-
-# visible_tweets = Filter("VisibleTweets", 
-#                         ["VisibleTweets1a", "VisibleTweets1b"], 
-#                         [], policy=True) # UNION THE RESULTS OF THE OR 
-
 
 visible_and_marked_tweets = Transform("VisibleAndMarkedTweets", 
                                      ["VisibleTweets", "YouWantSensitiveTweetsMarked"], 
@@ -129,7 +112,6 @@ visible_and_marked_tweets = Transform("VisibleAndMarkedTweets",
 
 twitter_policy_nodes = [private_users, user_blocked_accounts, user_blocked_by_accounts, users_you_follow, you_want_sensitive_tweets_marked, visible_tweets1a, 
                         visible_tweets1b, visible_tweets1c, visible_tweets, visible_and_marked_tweets]
-
 
 
 # Twitter query: 
